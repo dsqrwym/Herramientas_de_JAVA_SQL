@@ -55,9 +55,9 @@ public class ConectarBD {
                 JOptionPane.showMessageDialog(null, "No se ha podido establecer conexion", "INFO", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (java.sql.SQLException e) {
-            System.out.println("Error al conectar con la base de datos de PostgreSQL (" + url + "): " + e);
+            System.out.println("Error al conectar con la base de datos de Mariadb (" + url + "): " + e);
         } catch (ClassNotFoundException ex) {
-            System.out.println("Error al registrar el driver de PostgreSQL: " + ex);
+            System.out.println("Error al registrar el driver de Mariadb: " + ex);
         } finally {
             if (cerrar) {
                 try {
