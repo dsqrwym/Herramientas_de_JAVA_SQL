@@ -100,7 +100,12 @@ public class ConectarBD {
             	st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
 
                 for (int i = 0; i < valores.length; i++){
-                    st.setObject(i+1, valores[i]);
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
                 }
 
                 rs = st.executeQuery();
@@ -119,7 +124,12 @@ public class ConectarBD {
                 st = connection.prepareStatement(query);
 
                 for (int i = 0; i < valores.length; i++){
-                    st.setObject(i+1, valores[i]);
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
                 }
 
             	int updateCount = st.executeUpdate();
@@ -155,9 +165,13 @@ public class ConectarBD {
             try {
                 st = connection.prepareStatement(queryDeConsulta);
 
-                for (int i = 0; i< valores.length; i++){
-                    st.setObject(i+1, valores[i]);
-
+                for (int i = 0; i < valores.length; i++){
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
                 }
                 rs = st.executeQuery();
 
