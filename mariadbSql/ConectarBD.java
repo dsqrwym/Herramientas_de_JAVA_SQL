@@ -195,6 +195,17 @@ public class ConectarBD {
         return contenidos.toString();
     }
 
+    public static boolean estaConectado(){
+        if (connection != null){
+            try {
+                return !connection.isClosed();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return false;
+    }
+
     public static ArrayList<String> obtenerNombresTablas() {
         ArrayList<String> nombresTablas = new ArrayList<>();
         if(connectDatabase(false)) {
