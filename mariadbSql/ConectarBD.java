@@ -7,7 +7,7 @@ import javax.swing.JOptionPane;
 
 public class ConectarBD {
     private static Connection connection = null;
-    private static Statement st = null;
+    private static PreparedStatement st = null;
     private static ResultSet rs = null;
     private static String host;
     private static String port;
@@ -70,7 +70,7 @@ public class ConectarBD {
         return valida;
     }
 
-    public static void cerrarStatement(){
+    public static void cerrarPreparedStatement(){
         if (st != null) {
             try {
                 st.close();
@@ -90,15 +90,20 @@ public class ConectarBD {
         }
     }
 
-    public static ResultSet ejecutarSelect(String query) {
+    public static ResultSet ejecutarSelect(String query, Object... valores) {
         boolean exito = connectDatabase(false);
 
         if (!exito) {
             return null;
         } else {
             try {
-            	st = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
-                rs = st.executeQuery(query);
+            	st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+
+                for (int i = 0; i < valores.length; i++){
+                    st.setObject(i+1, valores[i]);
+                }
+
+                rs = st.executeQuery();
             } catch (SQLException e) {
                 mensaje(e.getMessage());
             }
@@ -106,13 +111,18 @@ public class ConectarBD {
         return rs;
     }
 
-    public static boolean ejecutarQuerys(String query, int OP_SQL) {
+    public static boolean ejecutarQuerys(String query, int OP_SQL, Object... valores) {
         boolean exito = connectDatabase(false);
         boolean hecho = false;
         if (exito) {
             try {
-                st = connection.createStatement();
-            	int updateCount = st.executeUpdate(query);
+                st = connection.prepareStatement(query);
+
+                for (int i = 0; i < valores.length; i++){
+                    st.setObject(i+1, valores[i]);
+                }
+
+            	int updateCount = st.executeUpdate();
                 if(OP_SQL == DML_SQL) {
                 	hecho = (updateCount > 0);
                 }else {
@@ -121,7 +131,7 @@ public class ConectarBD {
             } catch (SQLException e) {
                 mensaje(e.getMessage());
             } finally {
-                cerrarStatement();
+                cerrarPreparedStatement();
                 cerrarConnection();
             }
         }
@@ -138,13 +148,18 @@ public class ConectarBD {
         }
     }
 
-    public static  String obtenerInformacionEnFila(String queryDeConsulta){
+    public static  String obtenerInformacionEnFila(String queryDeConsulta, Object... valores){
         StringBuilder contenidos = new StringBuilder();
 
         if (connectDatabase(false)){
             try {
-                st = connection.createStatement();
-                rs = st.executeQuery(queryDeConsulta);
+                st = connection.prepareStatement(queryDeConsulta);
+
+                for (int i = 0; i< valores.length; i++){
+                    st.setObject(i+1, valores[i]);
+
+                }
+                rs = st.executeQuery();
 
                 ResultSetMetaData metaData = rs.getMetaData();
                 int numColumna = metaData.getColumnCount();
@@ -188,7 +203,7 @@ public class ConectarBD {
                 mensaje(e.getMessage());
             } finally {
                 cerrarResultSet();
-                cerrarStatement();
+                cerrarPreparedStatement();
                 ConectarBD.cerrarConnection();
             }
         }

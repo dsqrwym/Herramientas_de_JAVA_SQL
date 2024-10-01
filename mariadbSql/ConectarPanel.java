@@ -47,7 +47,6 @@ public class ConectarPanel extends JFrame {
             	}
         	}
         });
-        setAlwaysOnTop(true);
 
         setSize(450, 352);
         setLocationRelativeTo(null);
