@@ -1,16 +1,9 @@
 package postgreSql;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
+import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 
 import java.awt.Font;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.JButton;
-import javax.swing.JTextField;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -18,18 +11,30 @@ import java.awt.event.ActionEvent;
 import java.io.Serial;
 
 public class ConectarPanel extends JFrame {
-
     @Serial
     private static final long serialVersionUID = 1L;
-    private JPanel contentPane;
-    private JTextField ipInput;
-    private JTextField puertoInput;
-    private JTextField bdInput;
-    private JTextField userInput;
-    private JTextField passInput;
+    private static ConectarPanel instance;
+    private final JPanel contentPane;
+    private final JTextField ipInput;
+    private final JTextField puertoInput;
+    private final JTextField bdInput;
+    private final JTextField userInput;
+    private final JPasswordField passInput;
     private boolean conectado = false;
-    
-    public ConectarPanel(funcionesARealizar funcion) {
+
+    public static ConectarPanel getInstance(FuncionesARealizar funcion) {
+        if (instance == null) {
+            instance = new ConectarPanel(funcion);
+        }
+        return instance;
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        instance = null;
+    }
+    private ConectarPanel(FuncionesARealizar funcion) {
     	setTitle("ConectarPanel");
     	this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -38,7 +43,7 @@ public class ConectarPanel extends JFrame {
             	if(conectado) {
             		dispose();
             	}else {
-            		errorMensaje("Tienes que crear una coneccion correcta para que cierre la ventana,\n ya que has utilizado getConnction\ny no has generado Connection antes.");
+            		errorMensaje("Tienes que crear una coneccion correcta para que cierre la ventana,\n ya que necesitas conectar bases de dados\ny no has generado Connection antes.");
             	}
         	}
         });
@@ -89,7 +94,7 @@ public class ConectarPanel extends JFrame {
                 String puerto = puertoInput.getText();
                 String BD = bdInput.getText();
                 String user = userInput.getText();
-                String pass = passInput.getText();
+                String pass = new String(passInput.getPassword());
                 if (examinarCampos(ip, puerto, BD, user, pass)) {
                     ConectarBD.setHost(ip);
                     ConectarBD.setPort(puerto);
@@ -161,7 +166,7 @@ public class ConectarPanel extends JFrame {
 		userInput.setText("postgres");
 		contentPane.add(userInput);
 
-		passInput = new JTextField();
+		passInput = new JPasswordField();
 		passInput.setColumns(10);
 		passInput.setBounds(140, 222, 260, 28);
 		contentPane.add(passInput);
@@ -173,3 +178,4 @@ public class ConectarPanel extends JFrame {
 		JOptionPane.showInternalMessageDialog(contentPane, string, "Error", JOptionPane.ERROR_MESSAGE);
 	}
 }
+

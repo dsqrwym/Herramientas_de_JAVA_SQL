@@ -3,7 +3,9 @@ package postgreSql;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -12,6 +14,8 @@ import javax.swing.JOptionPane;
 
 public class ConectarBD {
     private static Connection connection = null;
+    private static PreparedStatement st = null;
+    private static ResultSet rs = null;
     private static String host;
     private static String port;
     private static String database;
@@ -75,51 +79,80 @@ public class ConectarBD {
         return valida;
     }
 
-    public static ResultSet ejecutarSelect(String query) {
+    public static void cerrarPreparedStatement(){
+        if (st != null) {
+            try {
+                st.close();
+            } catch (SQLException e) {
+                System.out.println("No ha podido cerrar la sentencia por " +e.getMessage());
+            }
+        }
+    }
+
+    public static void cerrarResultSet() {
+        if (rs != null) {
+            try {
+                rs.close();
+            } catch (SQLException e) {
+                mensaje("No ha podido cerrar ResultSet por "+e.getMessage());
+            }
+        }
+    }
+
+
+    public static ResultSet ejecutarSelect(String query, Object... valores) {
         boolean exito = connectDatabase(false);
-        Statement st = null;
-        ResultSet rs = null;
+
         if (!exito) {
             return null;
         } else {
             try {
-            	st = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
-                rs = st.executeQuery(query);
+            	st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+
+                for (int i = 0; i < valores.length; i++){
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
+                }
+
+                rs = st.executeQuery();
             } catch (SQLException e) {
-            	e.printStackTrace();
-                mensaje(e.getMessage(),"Error");
+                mensaje(e.getMessage());
             }
         }
         return rs;
     }
 
-    public static boolean ejecutarQuerys(String query, int OP_SQL) {
+    public static boolean ejecutarQuerys(String query, int OP_SQL, Object... valores) {
         boolean exito = connectDatabase(false);
-        Statement st = null;
         boolean hecho = false;
         if (exito) {
             try {
-                st = connection.createStatement();
-            	int updateCount = st.executeUpdate(query);
+                st = connection.prepareStatement(query);
+
+                for (int i = 0; i < valores.length; i++){
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
+                }
+
+            	int updateCount = st.executeUpdate();
                 if(OP_SQL == DML_SQL) {
                 	hecho = (updateCount > 0);
                 }else {
                 	hecho = (updateCount == 0);
                 }
             } catch (SQLException e) {
-            	hecho = false;
-            	e.printStackTrace();
-                mensaje(e.getMessage(),"Error");
+                mensaje(e.getMessage());
             } finally {
-                try {
-                    if (st != null) {
-                        st.close();
-                    }
-                    cerrarConnection();
-                } catch (SQLException e) {
-                	e.printStackTrace();
-                    mensaje(e.getMessage(),"Error");
-                }
+                cerrarPreparedStatement();
+                cerrarConnection();
             }
         }
         return hecho;
@@ -135,29 +168,97 @@ public class ConectarBD {
             mensaje(e.getMessage(),"Error");
         }
     }
+
+    public static  String obtenerInformacionEnFila(String queryDeConsulta, Object... valores){
+        StringBuilder contenidos = new StringBuilder();
+
+        if (connectDatabase(false)){
+            try {
+                st = connection.prepareStatement(queryDeConsulta);
+
+                for (int i = 0; i < valores.length; i++){
+                    Object valor = valores[i];
+                    if (valor == null) {
+                        st.setNull(i + 1, java.sql.Types.NULL);
+                    } else {
+                        st.setObject(i + 1, valor);
+                    }
+                }
+                rs = st.executeQuery();
+
+                ResultSetMetaData metaData = rs.getMetaData();
+                int numColumna = metaData.getColumnCount();
+
+                //Para calcular el ancho maxcimo de cada columna
+                //Inicializa con el tamanio de la columna
+                int[] maxAnchoColumna = new int[numColumna];
+                for (int i = 1; i<=numColumna; i++){
+                    maxAnchoColumna[i-1] = metaData.getColumnName(i).length();
+                }
+                //Actualiza el tamanio depende del ancho de los valoresNoAceptables de cada columna
+                while (rs.next()){
+                    for (int i = 1; i<numColumna; i++){
+                        //si es null no accede .length para evitar nullPoint
+                        String valor = rs.getString(i);
+                        if (valor != null){
+                            maxAnchoColumna[i-1] = Math.max(maxAnchoColumna[i - 1], valor.length());
+                        }
+                    }
+                }
+
+                rs.beforeFirst();
+
+                contenidos.append("Resultados: ").append("\n");
+                for (int i = 1; i <= numColumna; i++){
+                    contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", metaData.getColumnName(i)));
+                }
+                contenidos.append("\n");
+
+                while (rs.next()){
+                    for (int i = 1; i<=numColumna; i++){
+                        String valor = rs.getString(i);
+                        if (valor == null){
+                            valor = "null";
+                        }
+                        contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", valor));
+                    }
+                    contenidos.append("\n");
+                }
+            } catch (SQLException e) {
+                mensaje(e.getMessage());
+            } finally {
+                cerrarResultSet();
+                cerrarPreparedStatement();
+                ConectarBD.cerrarConnection();
+            }
+        }
+        return contenidos.toString();
+    }
+
+    public static boolean estaConectado(){
+        if (connection != null){
+            try {
+                return !connection.isClosed();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return false;
+    }
     
     public static ArrayList<String> obtenerNombresTablas() {
         ArrayList<String> nombresTablas = new ArrayList<>();
         if(connectDatabase(false)) {
-	        ResultSet res = null;
 	        try {
 	            DatabaseMetaData meta = connection.getMetaData();
-	            res = meta.getTables(null, null, "%", new String[]{"TABLE"});
-	            while (res.next()) {
-	                nombresTablas.add(res.getString("TABLE_NAME"));
+	            rs = meta.getTables(null, null, "%", new String[]{"TABLE"});
+	            while (rs.next()) {
+	                nombresTablas.add(rs.getString("TABLE_NAME"));
 	            }
 	        } catch (SQLException e) {
-	            e.printStackTrace();
-	            mensaje(e.getMessage(),"Error");
+	            mensaje(e.getMessage());
 	        } finally {
-	            if (res != null) {
-	                try {
-	                    res.close();
-	                } catch (SQLException e) {
-	                    e.printStackTrace();
-	                    mensaje(e.getMessage(),"Error");
-	                }
-	            }
+                cerrarResultSet();
 	            ConectarBD.cerrarConnection();
 	        }
 	        return nombresTablas;
