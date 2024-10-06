@@ -3,7 +3,7 @@ package mariadbSql;
 import java.sql.*;
 import java.util.ArrayList;
 
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
 public class ConectarBD {
     private static Connection connection = null;
@@ -14,11 +14,12 @@ public class ConectarBD {
     private static String database;
     private static String user;
     private static String password;
-    
+
     public static byte DDL_SQL = 0;
     public static byte DML_SQL = 1;
 
-    private ConectarBD() {}
+    private ConectarBD() {
+    }
 
     public static void setHost(String host) {
         ConectarBD.host = host;
@@ -39,19 +40,19 @@ public class ConectarBD {
     public static void setPassword(String password) {
         ConectarBD.password = password;
     }
-    
+
 
     public static boolean connectDatabase(boolean cerrar) {
         String url = "";
         boolean valida = false;
         try {
             Class.forName("org.mariadb.jdbc.Driver");
-            url = "jdbc:mariadb://" + host + ":" + port + "/" + database+ "?user=" +user +"&password=" +password;
+            url = "jdbc:mariadb://" + host + ":" + port + "/" + database + "?user=" + user + "&password=" + password;
             connection = DriverManager.getConnection(url);
             valida = connection.isValid(5);
             if (valida && cerrar) {
                 JOptionPane.showMessageDialog(null, "Conexion creada con exito");
-            }else if(!valida) {
+            } else if (!valida) {
                 JOptionPane.showMessageDialog(null, "No se ha podido establecer conexion", "INFO", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (java.sql.SQLException e) {
@@ -70,12 +71,12 @@ public class ConectarBD {
         return valida;
     }
 
-    public static void cerrarPreparedStatement(){
+    public static void cerrarPreparedStatement() {
         if (st != null) {
             try {
                 st.close();
             } catch (SQLException e) {
-                System.out.println("No ha podido cerrar la sentencia por " +e.getMessage());
+                System.out.println("No ha podido cerrar la sentencia por " + e.getMessage());
             }
         }
     }
@@ -85,21 +86,21 @@ public class ConectarBD {
             try {
                 rs.close();
             } catch (SQLException e) {
-                mensaje("No ha podido cerrar ResultSet por "+e.getMessage());
+                mensaje("No ha podido cerrar ResultSet por " + e.getMessage());
             }
         }
     }
 
     public static ResultSet ejecutarSelect(String query, Object... valores) {
-        boolean exito = connectDatabase(false);
+        boolean exito = (estaConectado() || connectDatabase(false));
 
         if (!exito) {
             return null;
         } else {
             try {
-            	st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+                st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
 
-                for (int i = 0; i < valores.length; i++){
+                for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
                     if (valor == null) {
                         st.setNull(i + 1, java.sql.Types.NULL);
@@ -116,14 +117,42 @@ public class ConectarBD {
         return rs;
     }
 
+    public static boolean isDDL(String query) {
+        String lowerCaseQuery = query.toLowerCase();
+        return lowerCaseQuery.contains("create") || lowerCaseQuery.contains("drop") || lowerCaseQuery.contains("alter");
+    }
+
+    public static boolean existe(String query, Object... parametros) {
+        ResultSet resultSet = ejecutarSelect(query, parametros);
+        try {
+            if (resultSet != null) {
+                return resultSet.next();
+            } else {
+                System.out.println("Error: La consulta no devolvió un resultado válido.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Error en la consulta SQL: " + e.getMessage());
+        } finally {
+            try {
+                if (resultSet != null) {
+                    resultSet.close();
+                }
+                cerrarPreparedStatement();
+            } catch (SQLException e) {
+                System.out.println("Error al cerrar el ResultSet: " + e.getMessage());
+            }
+        }
+        return false;
+    }
+
     public static boolean ejecutarQuerys(String query, int OP_SQL, Object... valores) {
-        boolean exito = connectDatabase(false);
+        boolean exito = (estaConectado() || connectDatabase(false));
         boolean hecho = false;
         if (exito) {
             try {
                 st = connection.prepareStatement(query);
 
-                for (int i = 0; i < valores.length; i++){
+                for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
                     if (valor == null) {
                         st.setNull(i + 1, java.sql.Types.NULL);
@@ -132,14 +161,15 @@ public class ConectarBD {
                     }
                 }
 
-            	int updateCount = st.executeUpdate();
-                if(OP_SQL == DML_SQL) {
-                	hecho = (updateCount > 0);
-                }else {
-                	hecho = (updateCount == 0);
+                int updateCount = st.executeUpdate();
+                if (OP_SQL == DML_SQL) {
+                    hecho = (updateCount > 0);
+                } else {
+                    hecho = (updateCount == 0);
                 }
             } catch (SQLException e) {
                 mensaje(e.getMessage());
+                return false;
             } finally {
                 cerrarPreparedStatement();
                 cerrarConnection();
@@ -158,14 +188,14 @@ public class ConectarBD {
         }
     }
 
-    public static  String obtenerInformacionEnFila(String queryDeConsulta, Object... valores){
+    public static String obtenerInformacionEnFila(String queryDeConsulta, Object... valores) {
         StringBuilder contenidos = new StringBuilder();
 
-        if (connectDatabase(false)){
+        if (estaConectado() || connectDatabase(false)) {
             try {
                 st = connection.prepareStatement(queryDeConsulta);
 
-                for (int i = 0; i < valores.length; i++){
+                for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
                     if (valor == null) {
                         st.setNull(i + 1, java.sql.Types.NULL);
@@ -181,37 +211,44 @@ public class ConectarBD {
                 //Para calcular el ancho maxcimo de cada columna
                 //Inicializa con el tamanio de la columna
                 int[] maxAnchoColumna = new int[numColumna];
-                for (int i = 1; i<=numColumna; i++){
-                    maxAnchoColumna[i-1] = metaData.getColumnName(i).length();
+                for (int i = 1; i <= numColumna; i++) {
+                    maxAnchoColumna[i - 1] = metaData.getColumnLabel(i).length();
                 }
+
+                int filas = 0;
                 //Actualiza el tamanio depende del ancho de los valoresNoAceptables de cada columna
-                while (rs.next()){
-                    for (int i = 1; i<numColumna; i++){
+                while (rs.next()) {
+                    for (int i = 1; i < numColumna; i++) {
                         //si es null no accede .length para evitar nullPoint
                         String valor = rs.getString(i);
-                        if (valor != null){
-                            maxAnchoColumna[i-1] = Math.max(maxAnchoColumna[i - 1], valor.length());
+                        if (valor != null) {
+                            maxAnchoColumna[i - 1] = Math.max(maxAnchoColumna[i - 1], valor.length());
                         }
                     }
+                    filas++;
                 }
 
-                rs.beforeFirst();
+                if (filas == 0) {
+                    contenidos.append("No hay resultado, fila total es 0\n");
+                } else {
+                    rs.beforeFirst();
 
-                contenidos.append("Resultados: ").append("\n");
-                for (int i = 1; i <= numColumna; i++){
-                    contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", metaData.getColumnName(i)));
-                }
-                contenidos.append("\n");
-
-                while (rs.next()){
-                    for (int i = 1; i<=numColumna; i++){
-                        String valor = rs.getString(i);
-                        if (valor == null){
-                            valor = "null";
-                        }
-                        contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", valor));
+                    contenidos.append("Resultados: ").append("\nNumero de FILAS: ").append(filas).append("\n");
+                    for (int i = 1; i <= numColumna; i++) {
+                        contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", metaData.getColumnLabel(i)));
                     }
                     contenidos.append("\n");
+
+                    while (rs.next()) {
+                        for (int i = 1; i <= numColumna; i++) {
+                            String valor = rs.getString(i);
+                            if (valor == null) {
+                                valor = "null";
+                            }
+                            contenidos.append(String.format("| %-" + maxAnchoColumna[i - 1] + "s |-", valor));
+                        }
+                        contenidos.append("\n");
+                    }
                 }
             } catch (SQLException e) {
                 mensaje(e.getMessage());
@@ -224,8 +261,8 @@ public class ConectarBD {
         return contenidos.toString();
     }
 
-    public static boolean estaConectado(){
-        if (connection != null){
+    public static boolean estaConectado() {
+        if (connection != null) {
             try {
                 return !connection.isClosed();
             } catch (SQLException e) {
@@ -237,26 +274,48 @@ public class ConectarBD {
 
     public static ArrayList<String> obtenerNombresTablas() {
         ArrayList<String> nombresTablas = new ArrayList<>();
-        if(connectDatabase(false)) {
-	        try {
-	            DatabaseMetaData meta = connection.getMetaData();
-	            rs = meta.getTables(null, null, "%", new String[]{"TABLE"});
-	            while (rs.next()) {
-	                nombresTablas.add(rs.getString("TABLE_NAME"));
-	            }
-	        } catch (SQLException e) {
-	            mensaje(e.getMessage());
-	        } finally {
+        if (estaConectado() || connectDatabase(false)) {
+            try {
+                DatabaseMetaData meta = connection.getMetaData();
+                rs = meta.getTables(null, null, "%", new String[]{"TABLE"});
+                while (rs.next()) {
+                    nombresTablas.add(rs.getString("TABLE_NAME"));
+                }
+            } catch (SQLException e) {
+                mensaje(e.getMessage());
+                return null;
+            } finally {
                 cerrarResultSet();
-	            ConectarBD.cerrarConnection();
-	        }
-	        return nombresTablas;
-        }else {
-        	return null;
+                ConectarBD.cerrarConnection();
+            }
+            return nombresTablas;
+        } else {
+            return null;
         }
     }
-    
+
     private static void mensaje(String string) {
-		JOptionPane.showInternalMessageDialog(null, string, "Error", JOptionPane.INFORMATION_MESSAGE);
-	}
+        JScrollPane scrollPane = getScrollPane(string);
+        JOptionPane optionPane = new JOptionPane(scrollPane, JOptionPane.INFORMATION_MESSAGE);
+        // Crear JDialog para mostrar el JOptionPane
+        JDialog dialog = optionPane.createDialog("Error");
+        // Hacer que el diálogo esté siempre en la parte superior
+        dialog.setAlwaysOnTop(true); // Mantener el diálogo encima de otros
+        // Mostrar el diálogo
+        dialog.setVisible(true);
+        //JOptionPane.showInternalMessageDialog(null, string, "Error", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static JScrollPane getScrollPane(String string) {
+        JTextArea textArea = new JTextArea(string);
+        textArea.setEditable(false); // El texto no se puede editar
+        textArea.setWrapStyleWord(true); // Ajusta las palabras a la línea
+        textArea.setLineWrap(true); // Habilita el ajuste de línea
+        textArea.setCaretPosition(0); // Coloca el cursor al principio del texto
+
+        // Envuelve el JTextArea en un JScrollPane para manejar textos largos
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new java.awt.Dimension(400, 200)); // Ajusta el tamaño del cuadro de diálogo
+        return scrollPane;
+    }
 }

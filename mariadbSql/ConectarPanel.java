@@ -40,16 +40,17 @@ public class ConectarPanel extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-            	if(conectado) {
-            		dispose();
-            	}else {
-            		errorMensaje("Tienes que crear una coneccion correcta para que cierre la ventana,\n ya que necesitas conectar bases de dados\ny no has generado Connection antes.");
+            	if(!conectado) {
+                    System.out.println("No has conectado Bases de Datos.");
             	}
+                funcion.realizarFuncion();
+                dispose();
         	}
         });
 
         setSize(450, 352);
         setLocationRelativeTo(null);
+        setAlwaysOnTop(true);
         
 		contentPane = new JPanel();
         contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
