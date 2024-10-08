@@ -1,4 +1,4 @@
-package mariadbSql;
+package sqlite3Sql;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -9,41 +9,20 @@ public class ConectarBD {
     private static Connection connection = null;
     private static PreparedStatement st = null;
     private static ResultSet rs = null;
-    private static String host;
-    private static String port;
-    private static String database;
-    private static String user;
-    private static String password;
-
+    private static String directorio;
     private ConectarBD() {
     }
 
-    public static void setHost(String host) {
-        ConectarBD.host = host;
-    }
-
-    public static void setPort(String port) {
-        ConectarBD.port = port;
-    }
-
-    public static void setDatabase(String database) {
-        ConectarBD.database = database;
-    }
-
-    public static void setUser(String user) {
-        ConectarBD.user = user;
-    }
-
-    public static void setPassword(String password) {
-        ConectarBD.password = password;
+    public static void setDirectorio(String directorio) {
+        ConectarBD.directorio = directorio;
     }
 
     public static boolean connectDatabase(boolean cerrar) {
         String url = "";
         boolean valida = false;
         try {
-            Class.forName("org.mariadb.jdbc.Driver");
-            url = "jdbc:mariadb://" + host + ":" + port + "/" + database + "?user=" + user + "&password=" + password;
+            Class.forName("org.sqlite.JDBC");
+            url = "jdbc:sqlite:" + directorio;
             connection = DriverManager.getConnection(url);
             valida = connection.isValid(5);
             if (valida && cerrar) {
@@ -53,9 +32,9 @@ public class ConectarBD {
                         JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (java.sql.SQLException e) {
-            System.out.println("Error al conectar con la base de datos de Mariadb (" + url + "): " + e);
+            System.out.println("Error al conectar con la base de datos de sqLite3 (" + url + "): " + e);
         } catch (ClassNotFoundException ex) {
-            System.out.println("Error al registrar el driver de Mariadb: " + ex);
+            System.out.println("Error al registrar el driver de sqLite3: " + ex);
         } finally {
             if (cerrar) {
                 try {
