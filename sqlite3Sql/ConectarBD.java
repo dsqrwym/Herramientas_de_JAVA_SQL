@@ -5,6 +5,8 @@ import java.util.ArrayList;
 
 import javax.swing.*;
 
+import static java.sql.ResultSet.*;
+
 public class ConectarBD {
     private static Connection connection = null;
     private static PreparedStatement st = null;
@@ -18,6 +20,7 @@ public class ConectarBD {
     }
 
     public static boolean connectDatabase(boolean cerrar) {
+        if (directorio == null || directorio.isEmpty()) return false;
         String url = "";
         boolean valida = false;
         try {
@@ -75,7 +78,7 @@ public class ConectarBD {
         }
 
         try {
-            st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            st = connection.prepareStatement(query, TYPE_FORWARD_ONLY, CONCUR_READ_ONLY);
 
             for (int i = 0; i < valores.length; i++) {
                 Object valor = valores[i];
@@ -130,7 +133,7 @@ public class ConectarBD {
 
         if (exito) {
             try {
-                st = connection.prepareStatement(query);
+                st = connection.prepareStatement(query, TYPE_SCROLL_SENSITIVE, CONCUR_UPDATABLE);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
@@ -171,7 +174,7 @@ public class ConectarBD {
 
         if (estaConectado() || connectDatabase(false)) {
             try {
-                st = connection.prepareStatement(queryDeConsulta);
+                st = connection.prepareStatement(queryDeConsulta, TYPE_SCROLL_INSENSITIVE, CONCUR_READ_ONLY);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
