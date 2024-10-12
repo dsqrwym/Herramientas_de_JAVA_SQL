@@ -133,7 +133,7 @@ public class ConectarBD {
 
         if (exito) {
             try {
-                st = connection.prepareStatement(query, TYPE_SCROLL_SENSITIVE, CONCUR_UPDATABLE);
+                st = connection.prepareStatement(query, TYPE_FORWARD_ONLY, CONCUR_UPDATABLE);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
@@ -174,7 +174,7 @@ public class ConectarBD {
 
         if (estaConectado() || connectDatabase(false)) {
             try {
-                st = connection.prepareStatement(queryDeConsulta, TYPE_SCROLL_INSENSITIVE, CONCUR_READ_ONLY);
+                st = connection.prepareStatement(queryDeConsulta, TYPE_FORWARD_ONLY, CONCUR_READ_ONLY);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
@@ -213,7 +213,8 @@ public class ConectarBD {
                 if (filas == 0) {
                     contenidos.append("No hay resultado, fila total es 0\n");
                 } else {
-                    rs.beforeFirst();
+                    cerrarResultSet();
+                    rs = st.executeQuery();
 
                     contenidos.append("Resultados:\nNumero de FILAS: ").append(filas).append("\n");
                     for (int i = 1; i <= numColumna; i++) {
