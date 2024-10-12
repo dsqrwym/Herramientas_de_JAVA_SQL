@@ -45,7 +45,7 @@ public class ConectarBD {
             Class.forName("org.mariadb.jdbc.Driver");
             url = "jdbc:mariadb://" + host + ":" + port + "/" + database + "?user=" + user + "&password=" + password;
             connection = DriverManager.getConnection(url);
-            valida = connection.isValid(5);
+            valida = connection.isValid(10);
             if (valida && cerrar) {
                 JOptionPane.showMessageDialog(null, "Conexion creada con exito");
             } else if (!valida) {
@@ -96,7 +96,7 @@ public class ConectarBD {
         }
 
         try {
-            st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
             for (int i = 0; i < valores.length; i++) {
                 Object valor = valores[i];
@@ -151,7 +151,7 @@ public class ConectarBD {
 
         if (exito) {
             try {
-                st = connection.prepareStatement(query);
+                st = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
@@ -192,7 +192,7 @@ public class ConectarBD {
 
         if (estaConectado() || connectDatabase(false)) {
             try {
-                st = connection.prepareStatement(queryDeConsulta);
+                st = connection.prepareStatement(queryDeConsulta, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
