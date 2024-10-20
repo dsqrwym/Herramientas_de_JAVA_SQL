@@ -4,7 +4,7 @@ import java.util.Scanner;
 public class ConectarConsola {
     private static final Scanner teclado = new Scanner(System.in);
     private ConectarConsola(){}
-    public static void conectarBD(){
+    public static boolean conectarBD(){
         System.out.println("Para connectar se necesita siguentes datos: ");
 
         do {
@@ -14,11 +14,12 @@ public class ConectarConsola {
             ConectarBD.setUser(obtenerUser());
             ConectarBD.setPassword(obtenerPass());
 
-            if (ConectarBD.connectDatabase(false)){
-                break;
+            if (ConectarBD.connectDatabase(false)) {
+                return true;
             }
-            System.out.println("No ha podido conectar Bases de Dados.\nDebe conectarse a la base de datos para realizar las siguientes operaciones.");
-        }while (true);
+
+        } while (respuestaSN("No ha podido conectar Bases de Dados.\n¿Quieres intentarlo de nuevo? (S/N)\n\tS --> Si\n\tN --> No"));
+        return false;
     }
 
     private static String obtenerPass() {
@@ -32,17 +33,11 @@ public class ConectarConsola {
     }
 
     private static String obtenerUser() {
-        String respuestaUser;
-        do {
-            System.out.println("User predeterminado -> root" +"\nQuieres cambiarla? Solo se acepta(S/N)");
-            respuestaUser = teclado.next().toUpperCase();
-            if (respuestaUser.equals("N")){
-                return "root";
-            }
-            if (respuestaUser.equals("S")){
-                return leerUser();
-            }
-        }while (true);
+        boolean cambiarUser = respuestaSN("User predeterminado -> root\n¿Quieres cambiarla? Solo se acepta(S/N)");
+        if (!cambiarUser) {
+            return "root";
+        }
+        return leerUser();
     }
 
     private static String leerUser() {
@@ -93,17 +88,11 @@ public class ConectarConsola {
     }
 
     private static String obtenerPuerto() {
-        String respuestaPuerto;
-        do {
-            System.out.println("Puerto predeterminado -> 3306" +"\nQuieres cambiarla? Solo se acepta(S/N)");
-            respuestaPuerto = teclado.next().toUpperCase();
-            if (respuestaPuerto.equals("N")){
-                return "3306";
-            }
-            if (respuestaPuerto.equals("S")){
-                return leerPuerto();
-            }
-        }while (true);
+        boolean cambiarPuerto = respuestaSN("Puerto predeterminado -> 3306\n¿Quieres cambiarla? Solo se acepta(S/N)");
+        if (!cambiarPuerto) {
+            return "3306";
+        }
+        return leerPuerto();
     }
 
     private static String leerPuerto() {
@@ -116,17 +105,11 @@ public class ConectarConsola {
     }
 
     private static String obtenerIP() {
-        String respuestaIP;
-        do {
-            System.out.println("IP predeterminado -> localhost" +"\nQuieres cambiarla? Solo se acepta(S/N)");
-            respuestaIP = teclado.next().toUpperCase();
-            if (respuestaIP.equals("N")){
-                return "localhost";
-            }
-            if (respuestaIP.equals("S")){
-                return leerIP();
-            }
-        }while (true);
+        boolean cambiarIP = respuestaSN("IP predeterminado -> localhost\n¿Quieres cambiarla? Solo se acepta(S/N)");
+        if (!cambiarIP) {
+            return "localhost";
+        }
+        return leerIP();
     }
 
     private static String leerIP() {
@@ -138,6 +121,14 @@ public class ConectarConsola {
        return ip;
     }
 
+    private static boolean respuestaSN(String mensaje) {
+        String respuesta;
+        do {
+            System.out.println(mensaje);
+            respuesta = teclado.next().toUpperCase();
+        } while (!respuesta.equals("S") && !respuesta.equals("N"));
+        return respuesta.equals("S");
+    }
     private static boolean esEntero(String numero) {
         return numero.matches("\\d+");
     }

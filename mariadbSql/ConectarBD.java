@@ -1,6 +1,8 @@
 package mariadbSql;
 
+import java.awt.*;
 import java.io.*;
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -59,7 +61,7 @@ public class ConectarBD {
                 JOptionPane.showMessageDialog(null, "No se ha podido establecer conexion", "INFO",
                         JOptionPane.INFORMATION_MESSAGE);
             }
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             System.out.println("Error al conectar con la base de datos de Mariadb (" + url + "): " + e);
         } catch (ClassNotFoundException ex) {
             System.out.println("Error al registrar el driver de Mariadb: " + ex);
@@ -113,7 +115,7 @@ public class ConectarBD {
             for (int i = 0; i < valores.length; i++) {
                 Object valor = valores[i];
                 if (valor == null) {
-                    st.setNull(i + 1, java.sql.Types.NULL);
+                    st.setNull(i + 1, Types.NULL);
                 } else {
                     st.setObject(i + 1, valor);
                 }
@@ -174,7 +176,7 @@ public class ConectarBD {
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
                     if (valor == null) {
-                        st.setNull(i + 1, java.sql.Types.NULL);
+                        st.setNull(i + 1, Types.NULL);
                     } else {
                         st.setObject(i + 1, valor);
                     }
@@ -217,7 +219,7 @@ public class ConectarBD {
                 for (int i = 0; i < valores.length; i++) {
                     Object valor = valores[i];
                     if (valor == null) {
-                        st.setNull(i + 1, java.sql.Types.NULL);
+                        st.setNull(i + 1, Types.NULL);
                     } else {
                         st.setObject(i + 1, valor);
                     }
@@ -291,12 +293,9 @@ public class ConectarBD {
         }
     }
 
-    public static void ejecutarSqlScript(String archivo, String codificacion) {
-        if (archivo == null || archivo.isEmpty()) {
-            //Validar que el archivo no sea nulo o vacio
-            System.out.println("El archivo proporcionado es nulo o vacio.");
-            return;
-        }
+    public static void ejecutarSqlScript(File archivo, Charset codificacion) {
+        // Verificar si el archivo es válido
+        if (archivoInvalido(archivo)) return;
 
         // Verificar si hay conexión con la base de datos o conectarse
         if (estaConectado() || connectDatabase(false)) {
@@ -305,43 +304,7 @@ public class ConectarBD {
                     Statement statement = connection.createStatement();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(archivo), codificacion))
             ) {
-                StringBuilder query = new StringBuilder();
-                String linea;
-                int contador = 0; //Para hacer referencia a cada las sentencias del SQL
-
-                while ((linea = reader.readLine()) != null) {
-                    //Eliminar espacios en blanco al principio y final de la linea
-                    linea = linea.trim();
-
-                    //Si la linea no esta vacio o no es un comentario
-                    if (!linea.isEmpty() && !linea.startsWith("--")){
-                        query.append(linea);
-                        //Si setencia SQL esta completa o no
-                        if (linea.endsWith(";")){
-                            //Aniade setencia y reinicial StringBuilder
-                            statement.addBatch(query.toString());
-                            query.setLength(0);
-                            contador++;
-                        }
-                    }
-                }
-
-                if (contador > 0) {
-                    int[] resultado = statement.executeBatch();
-
-                    for (int i = 0; i < resultado.length; i++){
-                        int resultadoSetencia = resultado[i];
-                        if (resultadoSetencia == Statement.SUCCESS_NO_INFO){
-                            System.out.printf("Setencia %d : Ejecutada con exito, pero se desconoce el numero de filas afectadas.%n", (i+1));
-                        } else if (resultadoSetencia == Statement.EXECUTE_FAILED) {
-                            System.out.printf("Setencia %d : Ejecucion fallada%n", (i+1));
-                        } else {
-                            System.out.printf("Setencia %d : Ejecutada con exito, afecto a %d filas.", (i+1), resultadoSetencia);
-                        }
-                    }
-                }else {
-                    System.out.println("No hay setencias SQL para ejecutar.");
-                }
+                leerYEjecutarScripts(reader, statement);
 
             } catch (SQLException e) {
                 System.err.println("Error ejecutando el script SQL -> " + e.getMessage());
@@ -354,6 +317,87 @@ public class ConectarBD {
             }
         } else {
             System.out.println("Base de datos desconectada!");
+        }
+    }
+
+    private static boolean archivoInvalido(File archivo) {
+        if (archivo == null || !archivo.exists() || archivo.isDirectory()) {
+            System.out.println("El archivo proporcionado no es válido o es un directorio.");
+            return true;
+        }
+        return false;
+    }
+
+    private static void leerYEjecutarScripts(BufferedReader reader, Statement statement) throws IOException, SQLException {
+        StringBuilder query = new StringBuilder();
+        String linea;
+        ArrayList<String> sentencias = new ArrayList<>();
+        int contador = 0; //Para hacer referencia a cada las sentencias del SQL
+        boolean enComentarioBloque = false;
+
+        while ((linea = reader.readLine()) != null) {
+            //Eliminar espacios en blanco al principio y final de la linea
+            linea = linea.trim();
+
+            // Manejo de comentario de bloque
+            if (enComentarioBloque) {
+                if (linea.contains("*/")) {
+                    linea = linea.substring(linea.indexOf("*/") + 2).trim(); // Eliminar comentario de bloque y conservar el resto
+                    enComentarioBloque = false; // Termina el bloque de comentario
+                } else {
+                    continue; // Ignorar toda la línea si está dentro de un bloque de comentario
+                }
+            }
+
+            // Detectar el inicio de un comentario de bloque
+            if (linea.contains("/*")) {
+                int inicioComentario = linea.indexOf("/*");
+                query.append(linea, 0, inicioComentario).append(" "); // Añadir parte anterior al comentario
+
+                // Si hay un cierre de comentario en la misma línea
+                if (linea.contains("*/")) {
+                    int finComentario = linea.indexOf("*/", inicioComentario);
+                    linea = linea.substring(finComentario + 2).trim(); // Conservar el resto de la línea después del comentario
+                } else {
+                    enComentarioBloque = true; // Entrar en modo bloque de comentario
+                    continue;
+                }
+            }
+
+            //Si la linea no esta vacio o no es un comentario
+            if (!linea.isEmpty() && !linea.startsWith("--")){
+                query.append(linea).append(" ");
+                //Si setencia SQL esta completa o no
+                if (linea.endsWith(";")){
+                    //Aniade setencia y reinicial StringBuilder
+                    String sentencia = query.toString();
+                    statement.addBatch(sentencia); // Añadir la sentencia a la lista del batch
+                    sentencias.add(sentencia); // Guardar la sentencia para procesar resultados
+                    query.setLength(0); // Limpiar el query para la siguiente sentencia
+                    contador++;
+                }
+            }
+        }
+
+        if (contador > 0) {
+            int[] resultados = statement.executeBatch();
+            procesarResultados(resultados, sentencias);
+
+        }else {
+            System.out.println("No hay setencias SQL para ejecutar.");
+        }
+    }
+
+    private static void procesarResultados(int[] resultados, ArrayList<String> sentencias) {
+        for (int i = 0; i < resultados.length; i++) {
+            int resultadoSetencia = resultados[i];
+            if (resultadoSetencia == Statement.SUCCESS_NO_INFO){
+                System.out.printf("Setencia %d\n%s\n-->Ejecutada con exito, pero se desconoce el numero de filas afectadas.%n", (i+1), sentencias.get(i));
+            } else if (resultadoSetencia == Statement.EXECUTE_FAILED) {
+                System.out.printf("Setencia %d\n%s\n-->Ejecucion fallada%n", (i+1),  sentencias.get(i));
+            } else {
+                System.out.printf("Setencia %d\n%s\n-->Ejecutada con exito, afecto a %d filas.%n", (i+1), sentencias.get(i), resultadoSetencia);
+            }
         }
     }
 
@@ -404,7 +448,7 @@ public class ConectarBD {
 
         // Envuelve el JTextArea en un JScrollPane para manejar textos largos
         JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new java.awt.Dimension(400, 200)); // Ajusta el tamaño del cuadro de diálogo
+        scrollPane.setPreferredSize(new Dimension(400, 200)); // Ajusta el tamaño del cuadro de diálogo
         return scrollPane;
     }
 }
